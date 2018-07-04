@@ -1,0 +1,147 @@
+##########################################################################################
+TOMCAT部署
+端口：8080  8005
+安装包(JDK环境)：ava-1.8.0-openjdk  java-1.8.0-openjdk-headless 
+  yum 安装   
+安装包(Tomcat)：apache-tomcat-8.0.30.tar.gz
+  tar -xf  apache-tomcat-8.0.30.tar.gz
+  mv  apache-tomcat-8.0.30   /usr/local/tomcat
+启动服务：/usr/local/tomcat/bin/startup.sh 
+        /usr/local/tomcat/bin/startup.sh 
+!!!###如果8005端口启动非常慢
+  mv /dev/random  /dev/random.bak                  ln -s /dev/urandom  /dev/random
+##########################################################################################
+TOMCAT虚拟主机       #(严格区分大小写)     #(页面需要放在根路径下的 ROOT 下)
+配置文件：/usr/local/tomcat/conf/server.xml
+启动虚拟主机配置：
+  <Host name="www.a.com" appBase="fhygdd" unpackWARS="true" autoDeploy="true">  ##一个主机一个Host
+  </Host>
+  <Host name="www.b.com" appBase="b" unpackWARS="true" autoDeploy="true">  ##一个主机一个Host
+  </Host>
+ Host name=        #域名
+ appBase=          #页面的根路径
+ unpackWARS=       #不设置默认true#值为true会自动将WAR文件解压，否则不解压，直接从WAR文件中运行应用程序
+ autoDeploy=       #不设置默认true#
+部署页面的根路径 /usr/local/tomcat/fhygdd/ROOT     #(页面需要放在根路径下的 ROOT 下)
+修改网页首页目录
+  <Host name="www.b.com" appBase="b" unpackWARS="true" autoDeploy="true">
+  <Context path="" docBase="base" reloadable="true"/>
+  </Host>
+
+  docBase=            #把网页的根页面的目录更改
+  Context path=""     #转发访问
+##########################################################################################
+TOMCAT配置支持SSL加密
+  keytool -genkeypair -alias tomcat -keyalg RSA -keystore /usr/local/tomcat/keystore 
+-genkeypair         ##生成密钥对
+-alias tomcat       ##密钥别名
+-keyalg RSA         ##定义密钥算法为RSA算法
+-keystore           ##定义密钥文件存储位置
+
+修改配置：  vim /usr/local/tomcat/conf/server.xml
+
+<Connector port="8443" protocol="org.apache.coyote.http11.Http11NioProtocol"
+maxThreads="150" SSLEnabled="true" scheme="https" secure="true"
+keystoreFile="/usr/local/tomcat/keystore" keystorePass="123456" clientAuth="false" sslProtocol="TLS" />
+     ####默认这段Connector被注释掉了，打开注释，添加密钥信息即可
+ 
+配置TOMCAT日志
+
+  <Host name="www.a.com" appBase="a" unpackWARS="true" autoDeploy="true">
+<Context path="/test" docBase="/var/www/html/" />
+<Valve className="org.apache.catalina.valves.AccessLogValve" directory="logs"
+               prefix=" aa_access" suffix=".txt"
+               pattern="%h %l %u %t &quot;%r&quot; %s %b" />
+</Host>
+<Host name="www.bb.com" appBase="bb" unpackWARS="true" autoDeploy="true">
+<Context path="" docBase="base" />
+<Valve className="org.apache.catalina.valves.AccessLogValve" directory="logs"
+               prefix=" bb_access" suffix=".txt"
+               pattern="%h %l %u %t &quot;%r&quot; %s %b" />
+</Host>
+查看tomcat日志文件： /usr/local/tomcat/logs/
+##########################################################################################
+使用Varnish加速Web
+
+部署Varnish缓存服务器：
+yum -y install gcc readline-devel ncurses-devel pcre-devel  
+ ##python-docutils-0.11-0.2.20130715svn7687.el7.noarch.rpm
+
+useradd -s /sbin/nologin varnish   
+tar -xf varnish-5.2.1.tar.gz
+cd varnish-5.2.1
+./configure
+ make && make install
+ 
+复制启动脚本及配置文件:
+cd varnish-5.2.1
+cp  etc/example.vcl   /usr/local/etc/default.vcl
+
+修改配置文件： 
+usr/local/etc/default.vcl
+
+backend default {
+     .host = "192.168.2.100";
+     .port = "80";
+ }
+
+启动服务：
+varnishd  -f /usr/local/etc/default.vcl
+##varnishd –s malloc,128M        定义varnish使用内存作为缓存，空间为128M
+##varnishd –s file,/var/lib/varnish_storage.bin,1G 定义varnish使用文件作为缓存
+
+查看varnish日志：
+varnishlog                        //varnish日志
+varnishncsa                      //访问日志
+
+更新缓存数据 （默认也会自动更新，但非实时更新）
+varnishadm  
+varnish> ban req.url ~ .*            ##清空缓存数据，支持正则表达式
+                                   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
