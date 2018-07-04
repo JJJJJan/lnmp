@@ -1,0 +1,110 @@
+#######################################################################################
+LNMP（Ngnix环境，MariaDB环境，PHP环境）
+yum:
+ nginx
+ mariadb  mariadb-server  mariadb-devel
+ php  php-fpm  php-mysql  php-fpm-5.4.16-42.el7.x86_64.rpm
+#######################################################################################
+#######################################################################################
+NGINX
+useradd -s /sbin/nologin nginx         ##创建一个启动nginx服务的用户
+./configure
+--prefix=/usr/local/nginx              ##指定安装路径
+--with-http_ssl_module  
+--with-stream
+
+配置文件：/usr/local/nginx/conf/nginx.conf
+
+gcc 
+openssl-devel 
+pcre-devel 
+*zlib-devel
+#######################################################################################
+NGINX升级
+mv /usr/local/nginx/sbin/nginx  /usr/local/nginx/sbin/nginxold    ##备份老版本
+cp objs/nginx  /usr/local/nginx/sbin/       ##拷贝新版本
+make upgrade
+#######################################################################################
+NGINX-地址重写
+server {
+        listen       80;
+        server_name  localhost;
+        !!!!####rewrite ^/ http://www.tmooc.cn/;  ##访问跳转网址
+location / {
+    root   html;
+index  index.html index.htm;
+rewrite /a.html  /b.html;    ##rewrite /访问的地址   /跳转的地址   
+        !!!!## rewrite /a.html  /b.html redirect;    ##地址栏重写地址栏显示的是b.html
+#######################################################################################
+NGINX-SSL-虚拟主机 (https)
+!!!##需安装-http_ssl_module 
+
+cd /usr/local/nginx/conf
+openssl genrsa > cert.key                  ##生成私钥
+openssl req -new -x509 -key cert.key > cert.pem      ##生成证书
+配置文件：/usr/local/nginx/conf/nginx.conf
+server {
+        listen       443 ssl;
+        server_name            www.c.com;
+
+        ssl_certificate      cert.pem;              #这里是证书文件
+        ssl_certificate_key  cert.key;              #这里是私钥文件
+        ssl_session_cache    shared:SSL:1m;
+        ssl_session_timeout  5m;
+        ssl_ciphers  HIGH:!aNULL:!MD5;
+        ssl_prefer_server_ciphers  on;
+########################################################################################
+NGINX反向代理调度
+http {
+.. ..
+upstream AA {
+       ip_hash;   ##让客户访问上次所访问的服务器 （可选）
+     server 192.168.2.100 weight=1 max_fails=1 fail_timeout=30;
+                                ##权重   ##最大访问失败次数   ##访问失败后再访问时长
+        }
+.. .. 
+server {
+        listen        80;
+        server_name  localhost;
+            location / {
+            proxy_pass http://AA;   ##proxy_pass 指定工作的集群
+        }
+.. ..
+########################################################################################
+NGINX TCP/UDP反向代理调度
+
+> --with-stream   ##!!!需要提前安装模块
+
+stream {
+            upstream BB {
+               server 192.168.2.100:22;            ##后端SSH服务器的IP和端口
+}
+            server {
+                listen 12345;                    //Nginx监听的端口
+                proxy_connect_timeout 1s;
+                proxy_timeout 3s;
+                 proxy_pass BB;
+             }
+}
+.. ..
+http {
+########################################################################################
+MEMCACHE  #(nosql) #(LNMP+memcache) #(PHP实现session共享) 
+
+Nginx+mencache服务器：
+yum:memcached  telne   php-pecl-memcache  ##(PHP页面使用cache时需要的扩展包)
+端口：11211
+访问工具：telne
+
+提供网页端：
+yum：php-pecl-memcache 
+
+配置文件：/etc/php-fpm.d/www.conf  
+##最后两行修改  
+php_value[session.save_handler] = memcache                   ##session ID信息的memcache服务
+php_value[session.save_path] = "tcp://192.168.2.5:11211"     ##memcache服务的IP和端口
+
+修改配置后#####!!!!!systemctl restart php-fpm
+#######################################################################################
+
+
